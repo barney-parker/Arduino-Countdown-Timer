@@ -1,12 +1,18 @@
 // include the library code:
 #include <avr/sleep.h>
 #include <avr/power.h>
-#include <LiquidCrystal.h>
 #include <Wire.h>
 #include <RTClib.h>
+#include <LiquidCrystal.h>
+#include "defines.h"
 
 // initialize the library with the numbers of the interface pins
-LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
+LiquidCrystal lcd(LCD_RS, 
+                  LCD_ENABLE, 
+                  LCD_D4, 
+                  LCD_D5, 
+                  LCD_D6, 
+                  LCD_D7);
 
 //Initialise the RTC Object
 RTC_DS1307 RTC;
@@ -15,49 +21,50 @@ RTC_DS1307 RTC;
 long nextLCDUpdate = 0;
 long powerOffTime = 0;
 
-//Backlight pin
-int backlight = 7;
-
 void setPowerOffTime() {
   powerOffTime = millis() + 10000;//5 sec delay
 }
 
 void setup(){
-  //Set up Serial Output
-  Serial.begin(9600);
-  
   // set up the LCD's number of columns and rows and enable (inc blacklight)
   lcd.begin(16, 2);
   LCDEnable();
+  lcd.display();
   
   //make sure we're not going to time out too quickly
   setPowerOffTime();
   
   //set Digital pin 7 to OUTPUT
-  pinMode(7, OUTPUT);
+  pinMode(LCD_BL, OUTPUT);
+  digitalWrite(LCD_BL, HIGH);
 
-  //Set up Wire
+  //power up RTC
+  pinMode(6, OUTPUT);
+  digitalWrite(6, HIGH);
+  
+  //Set up Wire (for RTC)
   Wire.begin();
   
   //Start RTC
   RTC.begin();
   
   if(!RTC.isrunning()) {
-    Serial.println("RTC Not Running");
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("RTC Not Running");
     RTC.adjust(DateTime(__DATE__, __TIME__));
-  } else {
-    Serial.println("RTC Initialized");
+    for(;;);
   }
 }
 
 void LCDEnable() {
   lcd.display();          //turn on the LCD display
-  digitalWrite(7, HIGH);  //turn the backlight on
+  digitalWrite(LCD_BL, HIGH);  //turn the backlight on
 }
 
 void LCDDisable() {
   lcd.noDisplay();        //turn off the LCD display
-  digitalWrite(7, LOW);   //turn the backlight off
+  digitalWrite(LCD_BL, LOW);   //turn the backlight off
 }
 
 void buttonISR() {
@@ -76,7 +83,7 @@ void loop()
     nextLCDUpdate = millis() + 1000;  //set the next update time
   }
   
-  if(millis() > powerOffTime) {
+/*  if(millis() > powerOffTime) {
     //attach the interrupt function
     attachInterrupt(0, buttonISR, RISING);//TODO Should Be LOW - do we need to rewire? - was RISING
     
@@ -87,7 +94,7 @@ void loop()
     set_sleep_mode(SLEEP_MODE_PWR_DOWN);
     sleep_enable();
     sleep_mode();
-  }
+  }*/
 }
 
 void updateLCD() {
