@@ -21,6 +21,9 @@ RTC_DS1307 RTC;
 long nextLCDUpdate = 0;
 long powerOffTime = 0;
 
+int displayMode= 0;
+long displayNext = millis() + 5000;
+
 void setPowerOffTime() {
   powerOffTime = millis() + 10000;//5 sec delay
 }
@@ -77,10 +80,31 @@ void buttonISR() {
 
 void loop()
 {
-
-  if(millis() > nextLCDUpdate) {
-    updateLCD();
-    nextLCDUpdate = millis() + 1000;  //set the next update time
+  long ms = millis();
+  //update the display if it's time...
+  if(ms >= nextLCDUpdate) {
+    switch(displayMode) {
+      case 0:
+        updateLCDHoliday();
+        break;
+      case 1:
+        updateLCDNow();
+        break;
+      case 2:
+        updateLCDThen();
+        break;
+    }
+    
+    nextLCDUpdate = ms + 1000;  //set the next update time
+  }
+  
+  //update the display type
+  if(ms >= displayNext) {
+    displayMode++;
+    if(displayMode >= 3)
+      displayMode = 0;
+      
+    displayNext = ms + 5000;
   }
   
 /*  if(millis() > powerOffTime) {
@@ -97,26 +121,59 @@ void loop()
   }*/
 }
 
-void updateLCD() {
-  //get the RTC time
+void updateLCDHoliday() {
   DateTime now = RTC.now();
   DateTime hol(2012, 10, 15, 8, 10, 0);
-
+  
   //calculate the remaining time  
-  unsigned long remaining = hol.unixtime() - now.unixtime();
+  unsigned long remaining = (hol.unixtime() - now.unixtime());
+  updateLCDTimeout("Time to Holidays", remaining);
+}
 
+void updateLCDNow() {
+  DateTime now = RTC.now();
+  updateLCDDateTime("Time Now:", now.unixtime());
+}
+
+void updateLCDThen() {
+  DateTime hol(2012, 10, 15, 8, 10, 0);
+  updateLCDDateTime("Time Then:", hol.unixtime());
+}
+
+void updateLCDTimeout(char *text, long tm) {
   //do the LCD update
   lcd.clear();
   lcd.setCursor(0,0);
 
-  lcd.print("Time to Holidays:");
+  lcd.print(text);
 
   lcd.setCursor(0,1);
-  lcd.print(remaining / 86400L);
+  lcd.print(tm / 86400L);
   lcd.print(":");
-  lcd.print((remaining % 86400L) / 3600);
+  lcd.print((tm % 86400L) / 3600);
   lcd.print(":");
-  lcd.print(((remaining % 84600L) % 3600) / 60);
+  lcd.print(((tm % 84600L) % 3600) / 60);
   lcd.print(":");
-  lcd.print(((remaining % 84600L) % 3600) % 60);
+  lcd.print(((tm % 84600L) % 3600) % 60);
+}
+
+void updateLCDDateTime(char *text, DateTime tm) {
+  //do the LCD update
+  lcd.clear();
+  lcd.setCursor(0,0);
+
+  lcd.print(text);
+
+  lcd.setCursor(0,1);
+  lcd.print(tm.year(), DEC);
+  lcd.print('/');
+  lcd.print(tm.month(), DEC);
+  lcd.print('/');
+  lcd.print(tm.day(), DEC);
+  lcd.print(' ');
+  lcd.print(tm.hour(), DEC);
+  lcd.print(':');
+  lcd.print(tm.minute(), DEC);
+  lcd.print(':');
+  lcd.print(tm.second(), DEC);
 }
